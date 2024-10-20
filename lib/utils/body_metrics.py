@@ -1,4 +1,28 @@
 import numpy as np 
+from .vismo import pixel2world_vis_motion
+
+
+
+JOINT_NAME_TO_INDEX = {
+    'root': 0,
+    'rhip': 1,
+    'rkne': 2,
+    'rank': 3,
+    'lhip': 4,
+    'lkne': 5,
+    'lank': 6,
+    'belly': 7,
+    'neck': 8,
+    'nose': 9,
+    'head': 10,
+    'lsho': 11,
+    'lelb': 12,
+    'lwri': 13,
+    'rsho': 14,
+    'relb': 15,
+    'rwri': 16
+}
+
 
 
 def compute_velocity(positions, dt):
@@ -18,6 +42,7 @@ def compute_jerk(acceleration, dt):
 def compute_center_of_mass(keypoints):
     center_of_mass = np.mean(keypoints, axis=1)
     return center_of_mass
+
 
 def compute_x_axis_rotation_angle(skeleton, joints):
     """
@@ -103,7 +128,9 @@ def compute_angle(skeleton, joints):
     return rotation_angle_deg
 
 
-def get_all_metrics(skeleton): 
+def get_all_metrics(skeleton, y_last=False): 
+    skeleton = - skeleton
+    
     body_segments = {
         "shoulders": [14, 11], 
         "hips" : [1, 5], 
@@ -115,7 +142,12 @@ def get_all_metrics(skeleton):
         "right_arm" : [[15, 14], [15, 16]], 
         "left_arm" : [[12, 11], [12, 13]], 
     }
+
     
+    y_index = 2 if y_last else 1
+    x_index = 0
+    z_index = 1 if y_last else 2
+
     shoulder_x_axis_rotation = compute_x_axis_rotation_angle(skeleton, body_segments["shoulders"])
     hips_x_axis_rotation = compute_x_axis_rotation_angle(skeleton, body_segments["hips"])
 
@@ -131,27 +163,50 @@ def get_all_metrics(skeleton):
     left_leg_angle = compute_angle(skeleton, body_angles["left_leg"])
     right_arm_angle = compute_angle(skeleton, body_angles["right_arm"])
     left_arm_angle = compute_angle(skeleton, body_angles["left_arm"])
+    left_leg_angle_velocity = compute_velocity(left_leg_angle, 1/30)
+    left_leg_angle_accel = compute_acceleration(left_leg_angle_velocity, 1/30)
+
+    right_ankle_y = skeleton[:, JOINT_NAME_TO_INDEX["rank"], y_index]
+    right_ankle_z = skeleton[:, JOINT_NAME_TO_INDEX["rank"], z_index]
+    left_ankle_y = skeleton[:, JOINT_NAME_TO_INDEX["lank"], y_index]
+    left_ankle_z = skeleton[:, JOINT_NAME_TO_INDEX["lank"], z_index]
+    left_ankle_x = skeleton[:, JOINT_NAME_TO_INDEX["lank"], x_index]
     
     output = {
         "shoulders" : {
-            "shoulders_x_axis_rotation" : shoulder_x_axis_rotation, 
-            "shoulders_rot_velocity" : shoulder_rot_velocity, 
-            "shoulder_rot_accel" : shoulder_rot_accel,
-            "shoulders_rot_jerk" : shoulder_rot_jerk
+            "rotation" : shoulder_x_axis_rotation, 
+            "rotation_velocity" : shoulder_rot_velocity, 
+            "rotation_acceleration" : shoulder_rot_accel,
+            "rotation_jerk" : shoulder_rot_jerk
         }, 
         "hips" : {
-            "hips_x_axis_rotation" : hips_x_axis_rotation, 
-            "hips_rot_vel" : hips_rot_vel, 
-            "hips_rot_accel" : hips_rot_accel, 
-            "hips_rot_jerk" : hips_rot_jerk
+            "rotation" : hips_x_axis_rotation, 
+            "rotation_velocity" : hips_rot_vel, 
+            "rotation_acceleration" : hips_rot_accel, 
+            "rotation_jerk" : hips_rot_jerk
         }, 
-        "legs" : {
-            "left_leg_angle" : left_leg_angle, 
-            "right_leg_angle" : right_leg_angle
-        }, 
-        "arms" : {
-            "left_arm_angle" : left_arm_angle,
+        "left_leg" : {
+            "angle" : left_leg_angle, 
+            "angle_velocity": left_leg_angle_velocity, 
+            "angle_acceleration": left_leg_angle_accel
+        },
+        "right_leg" : {
+            "angle" : right_leg_angle
+        },
+        "left_arm" : {
+            "left_arm_angle" : left_arm_angle
+        },
+        "right_arm" : {
             "right_arm_angle" : right_arm_angle
+        }, 
+        "right_ankle" : {
+            "y_coord": right_ankle_y, 
+            "z_coord": right_ankle_z
+        }, 
+        "left_ankle" : {
+            "y_corod": left_ankle_y, 
+            "z_coord": left_ankle_z, 
+            "x_coord": left_ankle_x
         }
     }
 
