@@ -1,3 +1,4 @@
+from typing import Union, List
 import torch
 import numpy as np
 import ipdb
@@ -64,9 +65,19 @@ def halpe2h36m(x):
     y[:,16,:] = x[:,10,:]
     return y
     
-def read_input(json_path, vid_size, scale_range, focus):
-    with open(json_path, "r") as read_file:
-        results = json.load(read_file)
+def read_input(
+        data_source: Union[str, List[dict]], 
+        vid_size, 
+        scale_range, 
+        focus
+    ):
+
+    if isinstance(data_source, str): 
+        with open(data_source, "r") as read_file:
+            results = json.load(read_file)
+    else: 
+        results = data_source
+        
     kpts_all = []
     for item in results:
         if focus!=None and item['idx']!=focus:
@@ -85,11 +96,20 @@ def read_input(json_path, vid_size, scale_range, focus):
         motion = crop_scale(kpts_all, scale_range) 
     return motion.astype(np.float32)
 
+
+
 class WildDetDataset(Dataset):
-    def __init__(self, json_path, clip_len=243, vid_size=None, scale_range=None, focus=None):
-        self.json_path = json_path
+    def __init__(
+            self, 
+            data_source: Union[str, List[dict]], 
+            clip_len=243, 
+            vid_size=None, 
+            scale_range=None, 
+            focus=None
+    ):
+        self.data_source = data_source
         self.clip_len = clip_len
-        self.vid_all = read_input(json_path, vid_size, scale_range, focus)
+        self.vid_all = read_input(data_source, vid_size, scale_range, focus)
         
     def __len__(self):
         'Denotes the total number of samples'
